@@ -1,11 +1,7 @@
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   const { message } = req.body;
 
@@ -18,29 +14,27 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: message }],
-      }),
+        model: "gpt-3.5-turbo", // You can also use gpt-4 if your key supports it
+        messages: [
+          { role: "system", content: "You are Dispatch AI, a helpful assistant for law enforcement and veterans learning business." },
+          { role: "user", content: message }
+        ]
+      })
     });
 
     const data = await openaiRes.json();
 
-    // 🧪 DEBUG: Log full OpenAI response
-    console.log("OpenAI full response:", JSON.stringify(data, null, 2));
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      return res.status(500).json({ error: 'Empty response from OpenAI' });
+    }
 
-    // 🛡 Fallback if OpenAI didn't send usable content
-    const reply = data?.choices?.[0]?.message?.content || "Sorry, Dispatch was unable to answer that. Please try again.";
-
-    return res.status(200).json({ reply });
+    res.status(200).json({ reply: data.choices[0].message.content.trim() });
 
   } catch (error) {
-    console.error('OpenAI request failed:', error);
-    return res.status(500).json({
-      error: 'OpenAI request failed',
-      detail: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ error: 'Error connecting to OpenAI' });
   }
 }
