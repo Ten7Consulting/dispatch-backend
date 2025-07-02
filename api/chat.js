@@ -28,18 +28,19 @@ export default async function handler(req, res) {
 
     const data = await openaiRes.json();
 
-    // 🧪 DEBUG LOGGING
-    console.log("OpenAI Response:", JSON.stringify(data, null, 2));
+    // 🧪 DEBUG: Log full OpenAI response
+    console.log("OpenAI full response:", JSON.stringify(data, null, 2));
 
-    // SAFEGUARD: Check if response is valid
-    if (!data.choices || !data.choices[0] || !data.choices[0].message || !data.choices[0].message.content) {
-      return res.status(500).json({ error: 'Invalid response from OpenAI', raw: data });
-    }
+    // 🛡 Fallback if OpenAI didn't send usable content
+    const reply = data?.choices?.[0]?.message?.content || "Sorry, Dispatch was unable to answer that. Please try again.";
 
-    return res.status(200).json({ reply: data.choices[0].message.content });
+    return res.status(200).json({ reply });
 
   } catch (error) {
-    console.error('OpenAI error:', error);
-    return res.status(500).json({ error: 'OpenAI request failed', detail: error.message });
+    console.error('OpenAI request failed:', error);
+    return res.status(500).json({
+      error: 'OpenAI request failed',
+      detail: error.message,
+    });
   }
 }
